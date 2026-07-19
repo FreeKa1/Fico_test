@@ -70,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.error) return data.error;
     setAuth({ isLoggedIn: true, username: data.username, phone: data.phone || null });
     localStorage.setItem('auth_user', data.username);
+    document.cookie = `auth_user=${data.username}; path=/; max-age=86400; SameSite=Lax`;
     if (data.phone) localStorage.setItem('auth_phone', data.phone);
     return null;
   };
@@ -81,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.error) return data.error;
     setAuth({ isLoggedIn: true, username: data.username, phone: data.phone || null });
     localStorage.setItem('auth_user', data.username);
+    document.cookie = `auth_user=${data.username}; path=/; max-age=86400; SameSite=Lax`;
     if (data.phone) localStorage.setItem('auth_phone', data.phone);
     return null;
   };
@@ -121,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuth({ isLoggedIn: false, username: null, phone: null });
     localStorage.removeItem('auth_user');
     localStorage.removeItem('auth_phone');
+    document.cookie = 'auth_user=; path=/; max-age=0';
     router.push('/login');
   };
 
