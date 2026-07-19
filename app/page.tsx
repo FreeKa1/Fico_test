@@ -32,7 +32,7 @@ export default function HomePage() {
 }
 
 function HomeContent() {
-  const [modal, setModal] = useState<{ title: string; subtitle: string; icon: React.ReactNode; iconBg: string; total: number; href: string } | null>(null);
+  const [modal, setModal] = useState<{ title: string; subtitle: string; icon: React.ReactNode; iconBg: string; href: string } | null>(null);
 
   const openRandom = () => setModal({
     title: '随机刷题', subtitle: '从题库随机抽题，综合练习',
