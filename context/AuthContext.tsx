@@ -3,27 +3,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 
-export interface UserInfo {
-  username: string;
-  phone: string;
-  createdAt: string;
-}
-
-interface AuthContextType {
-  isLoggedIn: boolean;
-  username: string | null;
-  phone: string | null;
-  login: (username: string, password: string) => string | null;
-  register: (username: string, password: string, phone: string) => string | null;
-  updateProfile: (phone: string) => void;
-  changePassword: (oldPassword: string, newPassword: string) => string | null;
-  resetPassword: (username: string, phone: string, newPassword: string) => string | null;
-  logout: () => void;
-  getUsers: () => Record<string, UserData>;
-  deleteUser: (username: string) => void;
-  toggleBan: (username: string) => void;
-}
-
 export interface UserData {
   password: string;
   phone: string;
@@ -33,169 +12,131 @@ export interface UserData {
   banned: boolean;
 }
 
+interface AuthContextType {
+  isLoggedIn: boolean;
+  username: string | null;
+  phone: string | null;
+  login: (username: string, password: string) => Promise<string | null>;
+  register: (username: string, password: string, phone: string) => Promise<string | null>;
+  updateProfile: (phone: string) => Promise<void>;
+  changePassword: (oldPassword: string, newPassword: string) => Promise<string | null>;
+  resetPassword: (username: string, phone: string, newPassword: string) => Promise<string | null>;
+  deleteUser: (username: string) => Promise<void>;
+  toggleBan: (username: string) => Promise<void>;
+  logout: () => void;
+}
+
 const AuthContext = createContext<AuthContextType>({
   isLoggedIn: false, username: null, phone: null,
-  login: () => null, register: () => null, updateProfile: () => {}, changePassword: () => null, resetPassword: () => null, logout: () => {},
-  getUsers: () => ({}), deleteUser: () => {}, toggleBan: () => {},
+  login: async () => null, register: async () => null, updateProfile: async () => {},
+  changePassword: async () => null, resetPassword: async () => null,
+  deleteUser: async () => {}, toggleBan: async () => {}, logout: () => {},
 });
-
-const USERS_KEY = 'fico_users';
-const CURRENT_USER_KEY = 'auth_user';
-const CURRENT_PHONE_KEY = 'auth_phone';
-
-function getUsers(): Record<string, UserData> {
-  if (typeof window === 'undefined') return {};
-  try { return JSON.parse(localStorage.getItem(USERS_KEY) || '{}'); } catch { return {}; }
-}
-
-function saveUsers(users: Record<string, UserData>) {
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-}
-
-// Seed default admin if no users exist
-function ensureAdmin() {
-  const users = getUsers();
-  if (Object.keys(users).length === 0) {
-    users['admin'] = { password: 'admin123', phone: '', createdAt: new Date().toISOString(), lastLogin: '', totalLoginSeconds: 0, banned: false };
-    saveUsers(users);
-  }
-}
 
 function getInitialAuth() {
   if (typeof window === 'undefined') return { isLoggedIn: false, username: null as string | null, phone: null as string | null };
-  ensureAdmin();
-  const stored = localStorage.getItem(CURRENT_USER_KEY);
+  const stored = localStorage.getItem('auth_user');
   if (stored) {
-    const users = getUsers();
-    const user = users[stored];
-    return { isLoggedIn: true, username: stored, phone: user?.phone || null };
+    const phone = localStorage.getItem('auth_phone') || null;
+    return { isLoggedIn: true, username: stored, phone };
   }
   return { isLoggedIn: false, username: null, phone: null };
+}
+
+async function api(url: string, options?: RequestInit) {
+  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...options });
+  return res.json();
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState(getInitialAuth);
   const router = useRouter();
 
-  // Heartbeat: accumulate login time every 30s
+  // Heartbeat: send 30s every 30s
   useEffect(() => {
     if (!auth.isLoggedIn || !auth.username) return;
     const interval = setInterval(() => {
-      const users = getUsers();
-      if (users[auth.username!]) {
-        users[auth.username!].totalLoginSeconds = (users[auth.username!].totalLoginSeconds || 0) + 30;
-        saveUsers(users);
-      }
+      api(`/api/users/${auth.username}`, {
+        method: 'PUT', body: JSON.stringify({ action: 'heartbeat', loginSeconds: 30 }),
+      }).catch(() => {});
     }, 30000);
     return () => clearInterval(interval);
   }, [auth.isLoggedIn, auth.username]);
 
-  const login = (username: string, password: string): string | null => {
-    const users = getUsers();
-    const user = users[username];
-    if (!user) return '用户不存在';
-    if (user.banned) return '该账号已被禁用';
-    if (user.password !== password) return '密码错误';
-    user.lastLogin = new Date().toISOString();
-    saveUsers(users);
-    setAuth({ isLoggedIn: true, username, phone: user.phone || null });
-    localStorage.setItem(CURRENT_USER_KEY, username);
+  const login = async (username: string, password: string): Promise<string | null> => {
+    const data = await api('/api/users', {
+      method: 'POST', body: JSON.stringify({ action: 'login', username, password }),
+    });
+    if (data.error) return data.error;
+    setAuth({ isLoggedIn: true, username: data.username, phone: data.phone || null });
+    localStorage.setItem('auth_user', data.username);
+    if (data.phone) localStorage.setItem('auth_phone', data.phone);
     return null;
   };
 
-  const register = (username: string, password: string, phone: string): string | null => {
-    if (!username.trim()) return '用户名不能为空';
-    if (username.length < 2 || username.length > 20) return '用户名需 2-20 个字符';
-    if (!/^[a-zA-Z0-9_一-龥]+$/.test(username)) return '用户名只能包含中英文、数字、下划线';
-    if (password.length < 4) return '密码至少 4 位';
-    if (!/^1[3-9]\d{9}$/.test(phone)) return '请输入正确的 11 位手机号';
-
-    const users = getUsers();
-    if (users[username]) return '用户名已存在';
-    const phoneUsed = Object.values(users).some((u: UserData) => u.phone === phone);
-    if (phoneUsed) return '该手机号已被注册';
-
-    users[username] = { password, phone, createdAt: new Date().toISOString(), lastLogin: new Date().toISOString(), totalLoginSeconds: 0, banned: false };
-    saveUsers(users);
-    setAuth({ isLoggedIn: true, username, phone });
-    localStorage.setItem(CURRENT_USER_KEY, username);
-    return null; // success
+  const register = async (username: string, password: string, phone: string): Promise<string | null> => {
+    const data = await api('/api/users', {
+      method: 'POST', body: JSON.stringify({ action: 'register', username, password, phone }),
+    });
+    if (data.error) return data.error;
+    setAuth({ isLoggedIn: true, username: data.username, phone: data.phone || null });
+    localStorage.setItem('auth_user', data.username);
+    if (data.phone) localStorage.setItem('auth_phone', data.phone);
+    return null;
   };
 
-  const updateProfile = (phone: string) => {
+  const updateProfile = async (phone: string) => {
     if (!auth.username) return;
-    const users = getUsers();
-    if (users[auth.username]) {
-      users[auth.username].phone = phone;
-      saveUsers(users);
-      setAuth({ ...auth, phone });
-    }
+    await api(`/api/users/${auth.username}`, {
+      method: 'PUT', body: JSON.stringify({ action: 'update-phone', phone }),
+    });
+    setAuth({ ...auth, phone });
+    localStorage.setItem('auth_phone', phone);
   };
 
-  const changePassword = (oldPassword: string, newPassword: string): string | null => {
+  const changePassword = async (oldPassword: string, newPassword: string): Promise<string | null> => {
     if (!auth.username) return '未登录';
-    const users = getUsers();
-    const user = users[auth.username];
-    if (!user) return '用户不存在';
-    if (user.password !== oldPassword) return '原密码错误';
-    if (newPassword.length < 4) return '新密码至少 4 位';
-    if (oldPassword === newPassword) return '新密码不能与原密码相同';
-    users[auth.username].password = newPassword;
-    saveUsers(users);
-    return null;
+    const data = await api(`/api/users/${auth.username}`, {
+      method: 'PUT', body: JSON.stringify({ action: 'change-password', oldPassword, newPassword }),
+    });
+    return data.error || null;
   };
 
-  const resetPassword = (username: string, phone: string, newPassword: string): string | null => {
-    const users = getUsers();
-    const user = users[username];
-    if (!user) return '用户不存在';
-    if (!user.phone) return '该账号未绑定手机号，无法找回';
-    if (user.phone !== phone) return '手机号不匹配';
-    if (newPassword.length < 4) return '新密码至少 4 位';
-    users[username].password = newPassword;
-    saveUsers(users);
-    return null;
+  const resetPassword = async (username: string, phone: string, newPassword: string): Promise<string | null> => {
+    const data = await api('/api/users', {
+      method: 'POST', body: JSON.stringify({ action: 'reset-password', username, password: newPassword, phone }),
+    });
+    return data.error || null;
   };
 
-  const deleteUser = (username: string) => {
-    const users = getUsers();
-    delete users[username];
-    saveUsers(users);
+  const deleteUser = async (username: string) => {
+    await api(`/api/users/${username}`, { method: 'DELETE' });
   };
 
-  const toggleBan = (username: string) => {
-    const users = getUsers();
-    if (users[username]) {
-      users[username].banned = !users[username].banned;
-      saveUsers(users);
-    }
+  const toggleBan = async (username: string) => {
+    await api(`/api/users/${username}`, { method: 'PATCH' });
   };
 
   const logout = () => {
     setAuth({ isLoggedIn: false, username: null, phone: null });
-    localStorage.removeItem(CURRENT_USER_KEY);
+    localStorage.removeItem('auth_user');
+    localStorage.removeItem('auth_phone');
     router.push('/login');
   };
 
   return (
-    <AuthContext.Provider value={{ ...auth, login, register, updateProfile, changePassword, resetPassword, deleteUser, toggleBan, logout, getUsers }}>
+    <AuthContext.Provider value={{ ...auth, login, register, updateProfile, changePassword, resetPassword, deleteUser, toggleBan, logout }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-export function useAuth() {
-  return useContext(AuthContext);
-}
+export function useAuth() { return useContext(AuthContext); }
 
 export function AuthGuard({ children }: { children: ReactNode }) {
   const { isLoggedIn } = useAuth();
   const router = useRouter();
-
-  useEffect(() => {
-    if (!isLoggedIn) router.replace('/login');
-  }, [isLoggedIn, router]);
-
+  useEffect(() => { if (!isLoggedIn) router.replace('/login'); }, [isLoggedIn, router]);
   if (!isLoggedIn) return null;
   return <>{children}</>;
 }

@@ -25,11 +25,11 @@ function ProfileContent() {
     setToast({ message: '手机号已更新', type: 'success' });
   };
 
-  const handleChangePw = () => {
+  const handleChangePw = async () => {
     if (newPw !== confirmPw) {
       setToast({ message: '两次输入的新密码不一致', type: 'error' }); return;
     }
-    const err = changePassword(oldPw, newPw);
+    const err = await changePassword(oldPw, newPw);
     if (err) { setToast({ message: err, type: 'error' }); return; }
     setOldPw(''); setNewPw(''); setConfirmPw('');
     setToast({ message: '密码修改成功', type: 'success' });

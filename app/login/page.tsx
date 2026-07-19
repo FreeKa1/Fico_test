@@ -20,22 +20,22 @@ export default function LoginPage() {
 
   useEffect(() => { if (isLoggedIn) router.replace('/'); }, [isLoggedIn, router]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) { setToast({ message: '请输入用户名和密码', type: 'error' }); return; }
-    const err = login(username.trim(), password);
+    const err = await login(username.trim(), password);
     if (err) { setToast({ message: err, type: 'error' }); return; }
     setToast({ message: '登录成功！', type: 'success' });
     setTimeout(() => router.push('/'), 1500);
   };
 
-  const handleForgot = (e: React.FormEvent) => {
+  const handleForgot = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim()) { setToast({ message: '请输入用户名', type: 'error' }); return; }
     if (!fpPhone.trim()) { setToast({ message: '请输入绑定的手机号', type: 'error' }); return; }
     if (!fpNewPw || fpNewPw.length < 4) { setToast({ message: '新密码至少4位', type: 'error' }); return; }
     if (fpNewPw !== fpConfirmPw) { setToast({ message: '两次输入的密码不一致', type: 'error' }); return; }
-    const err = resetPassword(username.trim(), fpPhone.trim(), fpNewPw);
+    const err = await resetPassword(username.trim(), fpPhone.trim(), fpNewPw);
     if (err) { setToast({ message: err, type: 'error' }); return; }
     setToast({ message: '密码重置成功！', type: 'success' });
     setPassword(fpNewPw); setFpPhone(''); setFpNewPw(''); setFpConfirmPw(''); setMode('login');

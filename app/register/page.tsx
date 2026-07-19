@@ -16,9 +16,9 @@ export default function RegisterPage() {
 
   useEffect(() => { if (isLoggedIn) router.replace('/'); }, [isLoggedIn, router]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const err = register(username.trim(), password, phone.trim());
+    const err = await register(username.trim(), password, phone.trim());
     if (err) { setToast({ message: err, type: 'error' }); return; }
     setToast({ message: '注册成功！', type: 'success' });
     setTimeout(() => router.push('/'), 800);
