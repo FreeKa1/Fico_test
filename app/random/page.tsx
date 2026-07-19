@@ -61,6 +61,12 @@ function RandomContent() {
   const currentQuestion = selected[currentIndex];
   const answeredCount = Object.values(userAnswers).filter((a) => a.selected.length > 0).length;
 
+  const correctCount = selected.filter((q) => {
+    const ua = userAnswers[q.id];
+    if (!ua) return false;
+    return [...q.answers].sort().join(',') === [...ua.selected].sort().join(',');
+  }).length;
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-5">
@@ -77,45 +83,57 @@ function RandomContent() {
         userAnswer={userAnswers[currentQuestion.id]} showExplanation={showExplanation}
         isSubmitted={isSubmitted} onAnswerChange={handleAnswerChange} />
 
-      <div className="flex items-center justify-between mt-4 gap-1.5">
-        <button onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))} disabled={currentIndex === 0}
-          className="inline-flex items-center gap-1 px-3 sm:px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
-          <span className="hidden sm:inline">上一题</span>
-        </button>
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          <button onClick={() => setShowExplanation((v) => !v)}
-            className={`inline-flex items-center gap-1 px-3 sm:px-4 py-2 text-sm font-medium rounded-lg border transition-all ${
-              showExplanation
-                ? 'border-amber-200 bg-amber-50 text-amber-700'
-                : 'border-amber-100 bg-white text-amber-600 hover:bg-amber-50'
-            }`}>
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-            <span className="hidden sm:inline">{showExplanation ? '隐藏解析' : '解析'}</span>
-          </button>
-          {!isSubmitted ? (
-            <button onClick={() => { setIsSubmitted(true); setShowExplanation(true); setCurrentIndex(0); }}
-              className="inline-flex items-center gap-1 px-3 sm:px-4 py-2 text-sm font-medium rounded-lg bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-all">
+      {isSubmitted ? (
+        <div className="mt-4 bg-white border border-slate-200 rounded-xl p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-700">提交完成</p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                正确 {correctCount} / {count} 题（{Math.round((correctCount / count) * 100)}%）
+              </p>
+            </div>
+            <Link href="/"
+              className="inline-flex items-center gap-1 px-5 py-2 text-sm font-medium rounded-lg bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-all">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
-              <span className="hidden sm:inline">提交</span>
-            </button>
-          ) : (
-            <button onClick={() => { setIsSubmitted(false); setShowExplanation(false); }}
-              className="inline-flex items-center gap-1 px-3 sm:px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-slate-700 transition-all">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-            <span className="hidden sm:inline">修改</span>
-          </button>
-          )}
+              确认
+            </Link>
+          </div>
+          <div className="mt-3 h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+              style={{ width: `${(correctCount / count) * 100}%` }} />
+          </div>
         </div>
-        <button onClick={() => setCurrentIndex((i) => Math.min(count - 1, i + 1))} disabled={currentIndex === count - 1}
-          className="inline-flex items-center gap-1 px-3 sm:px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
-          <span className="hidden sm:inline">下一题</span>
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
-        </button>
-      </div>
-      <div className="mt-4 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-        <div className="h-full bg-blue-500 rounded-full transition-all duration-300"
-          style={{ width: `${((currentIndex + 1) / count) * 100}%` }} /></div>
+      ) : (
+        <>
+          <div className="flex items-center justify-between mt-4 gap-1.5">
+            <button onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))} disabled={currentIndex === 0}
+              className="inline-flex items-center gap-1 px-3 sm:px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+              <span className="hidden sm:inline">上一题</span>
+            </button>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <button onClick={() => setShowExplanation((v) => !v)}
+                className={`inline-flex items-center gap-1 px-3 sm:px-4 py-2 text-sm font-medium rounded-lg border transition-all ${showExplanation ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-amber-100 bg-white text-amber-600 hover:bg-amber-50'}`}>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                <span className="hidden sm:inline">{showExplanation ? '隐藏解析' : '解析'}</span>
+              </button>
+              <button onClick={() => { setIsSubmitted(true); setShowExplanation(true); setCurrentIndex(0); }}
+                className="inline-flex items-center gap-1 px-3 sm:px-4 py-2 text-sm font-medium rounded-lg bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-all">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                <span className="hidden sm:inline">提交</span>
+              </button>
+            </div>
+            <button onClick={() => setCurrentIndex((i) => Math.min(count - 1, i + 1))} disabled={currentIndex === count - 1}
+              className="inline-flex items-center gap-1 px-3 sm:px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+              <span className="hidden sm:inline">下一题</span>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+            </button>
+          </div>
+          <div className="mt-4 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+            <div className="h-full bg-blue-500 rounded-full transition-all duration-300"
+              style={{ width: `${((currentIndex + 1) / count) * 100}%` }} /></div>
+        </>
+      )}
     </div>
   );
 }
