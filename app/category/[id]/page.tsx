@@ -25,7 +25,7 @@ function CategoryContent() {
   const params = useParams();
   const categoryId = params.id as Category;
   const category = getCategoryById(categoryId);
-  const allQuestions = getQuestionsByCategory(categoryId);
+  const allQuestions = useMemo(() => getQuestionsByCategory(categoryId), [categoryId]);
   const [count, setCount] = useState(0);
   const [ready, setReady] = useState(false);
 
