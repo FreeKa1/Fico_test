@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import QuestionCard from '@/components/QuestionCard';
-import { questions } from '@/data/questions';
-import { UserAnswer } from '@/lib/types';
+import { getCategoryById, getQuestionsByCategory } from '@/data/categories';
+import { UserAnswer, Category } from '@/lib/types';
 import { AuthGuard } from '@/context/AuthContext';
 
 function shuffle<T>(arr: T[]): T[] {
@@ -16,38 +17,44 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-export default function RandomPage() {
-  return <AuthGuard><RandomContent /></AuthGuard>;
+export default function CategoryPage() {
+  return <AuthGuard><CategoryContent /></AuthGuard>;
 }
 
-function RandomContent() {
+function CategoryContent() {
+  const params = useParams();
+  const categoryId = params.id as Category;
+  const category = getCategoryById(categoryId);
+  const allQuestions = getQuestionsByCategory(categoryId);
   const [count, setCount] = useState(0);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
     const c = parseInt(sp.get('count') || '0');
-    if (c > 0) setCount(c);
+    if (c > 0) setCount(Math.min(c, allQuestions.length));
     setReady(true);
-  }, []);
+  }, [allQuestions.length]);
 
-  const [reshuffleKey, setReshuffleKey] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<Record<string, UserAnswer>>({});
   const [showExplanation, setShowExplanation] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const selected = useMemo(() => shuffle(questions).slice(0, count), [count, reshuffleKey]);
+  const questions = useMemo(
+    () => (count > 0 ? shuffle(allQuestions).slice(0, count) : []),
+    [count, allQuestions]
+  );
 
-  const handleAnswerChange = useCallback((questionId: string, sel: string[]) => {
-    setUserAnswers((prev) => ({ ...prev, [questionId]: { questionId, selected: sel } }));
+  const handleAnswerChange = useCallback((questionId: string, selected: string[]) => {
+    setUserAnswers((prev) => ({ ...prev, [questionId]: { questionId, selected } }));
   }, []);
 
   if (!ready) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50"><p className="text-slate-400">加载中...</p></div>;
   }
 
-  if (count <= 0 || selected.length === 0) {
+  if (count <= 0 || questions.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-center">
@@ -58,7 +65,7 @@ function RandomContent() {
     );
   }
 
-  const currentQuestion = selected[currentIndex];
+  const currentQuestion = questions[currentIndex];
   const answeredCount = Object.values(userAnswers).filter((a) => a.selected.length > 0).length;
 
   return (
@@ -69,11 +76,16 @@ function RandomContent() {
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
           返回
         </Link>
-        <span className="text-sm font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-600">随机刷题</span>
-        <span className="text-xs text-slate-400">已答 {answeredCount}/{count}</span>
+        <span className={`text-sm font-semibold px-3 py-1 rounded-full ${
+          categoryId === 'asset' ? 'bg-emerald-50 text-emerald-600' :
+          categoryId === 'liability' ? 'bg-blue-50 text-blue-600' :
+          categoryId === 'pl' ? 'bg-orange-50 text-orange-600' :
+          'bg-purple-50 text-purple-600'
+        }`}>{category?.name}</span>
+        <span className="text-xs text-slate-400">已答 {answeredCount}/{questions.length}</span>
       </div>
 
-      <QuestionCard question={currentQuestion} index={currentIndex} total={count}
+      <QuestionCard question={currentQuestion} index={currentIndex} total={questions.length}
         userAnswer={userAnswers[currentQuestion.id]} showExplanation={showExplanation}
         isSubmitted={isSubmitted} onAnswerChange={handleAnswerChange} />
 
@@ -107,7 +119,7 @@ function RandomContent() {
           </button>
           )}
         </div>
-        <button onClick={() => setCurrentIndex((i) => Math.min(count - 1, i + 1))} disabled={currentIndex === count - 1}
+        <button onClick={() => setCurrentIndex((i) => Math.min(questions.length - 1, i + 1))} disabled={currentIndex === questions.length - 1}
           className="inline-flex items-center gap-1 px-3 sm:px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
           <span className="hidden sm:inline">下一题</span>
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
@@ -115,7 +127,7 @@ function RandomContent() {
       </div>
       <div className="mt-4 h-1.5 bg-slate-200 rounded-full overflow-hidden">
         <div className="h-full bg-blue-500 rounded-full transition-all duration-300"
-          style={{ width: `${((currentIndex + 1) / count) * 100}%` }} /></div>
+          style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }} /></div>
     </div>
   );
 }

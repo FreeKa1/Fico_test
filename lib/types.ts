@@ -1,6 +1,9 @@
 // 题目类型
 export type QuestionType = 'single' | 'multi' | 'truefalse' | 'indefinite';
 
+// 业务分类
+export type Category = 'asset' | 'liability' | 'pl' | 'other';
+
 // 选项
 export interface Option {
   label: 'A' | 'B' | 'C' | 'D';
@@ -11,6 +14,7 @@ export interface Option {
 export interface Question {
   id: string;
   type: QuestionType;
+  category: Category;
   chapter: string;
   stem: string;
   options: Option[];
