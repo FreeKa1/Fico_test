@@ -35,9 +35,9 @@ const AuthContext = createContext<AuthContextType>({
 
 function getInitialAuth() {
   if (typeof window === 'undefined') return { isLoggedIn: false, username: null as string | null, phone: null as string | null };
-  const stored = localStorage.getItem('auth_user');
+  const stored = sessionStorage.getItem('auth_user');
   if (stored) {
-    const phone = localStorage.getItem('auth_phone') || null;
+    const phone = sessionStorage.getItem('auth_phone') || null;
     return { isLoggedIn: true, username: stored, phone };
   }
   return { isLoggedIn: false, username: null, phone: null };
@@ -69,9 +69,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     if (data.error) return data.error;
     setAuth({ isLoggedIn: true, username: data.username, phone: data.phone || null });
-    localStorage.setItem('auth_user', data.username);
-    document.cookie = `auth_user=${data.username}; path=/; max-age=86400; SameSite=Lax`;
-    if (data.phone) localStorage.setItem('auth_phone', data.phone);
+    sessionStorage.setItem('auth_user', data.username);
+    document.cookie = `auth_user=${data.username}; path=/; SameSite=Lax`;
+    if (data.phone) sessionStorage.setItem('auth_phone', data.phone);
     return null;
   };
 
@@ -81,9 +81,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     if (data.error) return data.error;
     setAuth({ isLoggedIn: true, username: data.username, phone: data.phone || null });
-    localStorage.setItem('auth_user', data.username);
-    document.cookie = `auth_user=${data.username}; path=/; max-age=86400; SameSite=Lax`;
-    if (data.phone) localStorage.setItem('auth_phone', data.phone);
+    sessionStorage.setItem('auth_user', data.username);
+    document.cookie = `auth_user=${data.username}; path=/; SameSite=Lax`;
+    if (data.phone) sessionStorage.setItem('auth_phone', data.phone);
     return null;
   };
 
@@ -93,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       method: 'PUT', body: JSON.stringify({ action: 'update-phone', phone }),
     });
     setAuth({ ...auth, phone });
-    localStorage.setItem('auth_phone', phone);
+    sessionStorage.setItem('auth_phone', phone);
   };
 
   const changePassword = async (oldPassword: string, newPassword: string): Promise<string | null> => {
@@ -121,8 +121,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setAuth({ isLoggedIn: false, username: null, phone: null });
-    localStorage.removeItem('auth_user');
-    localStorage.removeItem('auth_phone');
+    sessionStorage.removeItem('auth_user');
+    sessionStorage.removeItem('auth_phone');
     document.cookie = 'auth_user=; path=/; max-age=0';
     router.push('/login');
   };
