@@ -1,19 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-
-const USERS_FILE = path.join(process.cwd(), 'data', 'users.json');
-
-function readUsers(): Record<string, any> {
-  try {
-    if (!fs.existsSync(USERS_FILE)) return {};
-    return JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8'));
-  } catch { return {}; }
-}
-
-function writeUsers(users: Record<string, any>) {
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
-}
+import { query } from '@/lib/db';
 
 // PUT — update phone / change password / heartbeat
 // DELETE — remove user
@@ -21,38 +7,51 @@ function writeUsers(users: Record<string, any>) {
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
   const { action, phone, oldPassword, newPassword, loginSeconds } = await req.json();
-  const users = readUsers();
 
-  if (!users[username]) return NextResponse.json({ error: '用户不存在' }, { status: 404 });
+  try {
+    const rows = await query(`SELECT * FROM users WHERE username = @username`, { username });
+    if (rows.length === 0) return NextResponse.json({ error: '用户不存在' }, { status: 404 });
+    const user = rows[0];
 
-  if (action === 'update-phone') {
-    users[username].phone = phone;
-  } else if (action === 'change-password') {
-    if (users[username].password !== oldPassword) return NextResponse.json({ error: '原密码错误' }, { status: 400 });
-    if (newPassword.length < 4) return NextResponse.json({ error: '新密码至少 4 位' }, { status: 400 });
-    users[username].password = newPassword;
-  } else if (action === 'heartbeat') {
-    users[username].totalLoginSeconds = (users[username].totalLoginSeconds || 0) + (loginSeconds || 30);
+    if (action === 'update-phone') {
+      await query(`UPDATE users SET phone = @phone WHERE username = @username`, { phone, username });
+    } else if (action === 'change-password') {
+      if (user.password !== oldPassword) return NextResponse.json({ error: '原密码错误' }, { status: 400 });
+      if (newPassword.length < 4) return NextResponse.json({ error: '新密码至少 4 位' }, { status: 400 });
+      await query(`UPDATE users SET password = @password WHERE username = @username`, { password: newPassword, username });
+    } else if (action === 'heartbeat') {
+      await query(
+        `UPDATE users SET total_login_seconds = total_login_seconds + @seconds WHERE username = @username`,
+        { seconds: loginSeconds || 30, username }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (e) {
+    return NextResponse.json({ error: '服务器错误' }, { status: 500 });
   }
-
-  writeUsers(users);
-  return NextResponse.json({ success: true });
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
-  const users = readUsers();
-  delete users[username];
-  writeUsers(users);
-  return NextResponse.json({ success: true });
+  try {
+    await query(`DELETE FROM users WHERE username = @username`, { username });
+    return NextResponse.json({ success: true });
+  } catch (e) {
+    return NextResponse.json({ error: '服务器错误' }, { status: 500 });
+  }
 }
 
 export async function PATCH(_req: NextRequest, { params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
-  const users = readUsers();
-  if (users[username]) {
-    users[username].banned = !users[username].banned;
+  try {
+    const rows = await query(`SELECT * FROM users WHERE username = @username`, { username });
+    if (rows.length === 0) return NextResponse.json({ error: '用户不存在' }, { status: 404 });
+    const user = rows[0];
+    const newBanned = !user.banned;
+    await query(`UPDATE users SET banned = @banned WHERE username = @username`, { banned: newBanned, username });
+    return NextResponse.json({ success: true, banned: newBanned });
+  } catch (e) {
+    return NextResponse.json({ error: '服务器错误' }, { status: 500 });
   }
-  writeUsers(users);
-  return NextResponse.json({ success: true, banned: users[username]?.banned });
 }
