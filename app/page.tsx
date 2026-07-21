@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { AuthGuard } from '@/context/AuthContext';
 import { categories } from '@/data/categories';
-import { questions } from '@/data/questions';
 import CountSelector from '@/components/CountSelector';
 
 const CatIcon = ({ id }: { id: string }) => {

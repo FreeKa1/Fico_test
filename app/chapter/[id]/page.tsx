@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import QuestionCard from '@/components/QuestionCard';
 import { getChapterById } from '@/data/chapters';
-import { getQuestionsByChapter } from '@/data/questions';
+import { fetchQuestionsByChapter } from '@/data/questions';
 import { UserAnswer } from '@/lib/types';
 import { AuthGuard } from '@/context/AuthContext';
+import type { Question } from '@/lib/types';
 
 export default function ChapterPage() {
   return (
@@ -21,7 +22,12 @@ function ChapterContent() {
   const params = useParams();
   const chapterId = params.id as string;
   const chapter = getChapterById(chapterId);
-  const questions = getQuestionsByChapter(chapterId);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchQuestionsByChapter(chapterId).then((q) => { setQuestions(q); setLoading(false); }).catch(() => setLoading(false));
+  }, [chapterId]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<Record<string, UserAnswer>>({});
@@ -37,6 +43,10 @@ function ChapterContent() {
       [questionId]: { questionId, selected },
     }));
   }, []);
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50"><p className="text-slate-400">加载中...</p></div>;
+  }
 
   if (!chapter || questions.length === 0) {
     return (

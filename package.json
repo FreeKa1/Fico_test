@@ -3,11 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "npm run dump-questions && next dev -H localhost",
-    "build": "npm run dump-questions && next build",
+    "dev": "next dev -H localhost",
+    "build": "next build",
     "start": "next start -p 3310",
     "lint": "eslint",
-    "dump-questions": "tsx scripts/dump-questions.ts",
     "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {

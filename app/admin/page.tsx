@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { questions } from '@/data/questions';
 import type { UserData } from '@/context/AuthContext';
 
 export default function AdminDashboard() {
@@ -10,6 +9,7 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<Record<string, UserData>>({});
   const [showPw, setShowPw] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
+  const [questionCount, setQuestionCount] = useState(0);
 
   const loadUsers = useCallback(async () => {
     try {
@@ -24,6 +24,8 @@ export default function AdminDashboard() {
     if (typeof window === 'undefined') return;
     if (localStorage.getItem('fico_admin') !== '1') { router.replace('/admin/login'); return; }
     loadUsers();
+    // Fetch question count
+    fetch('/api/questions').then(r => r.json()).then(q => setQuestionCount(q.length)).catch(() => {});
   }, [router, loadUsers]);
 
   const handleDelete = async (name: string) => {
@@ -62,7 +64,7 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
           <div className="bg-slate-800 border border-slate-700 rounded-xl p-5">
             <p className="text-sm text-slate-400 mb-1">题库总量</p>
-            <p className="text-3xl font-bold text-white">{questions.length}</p>
+            <p className="text-3xl font-bold text-white">{questionCount}</p>
           </div>
           <div className="bg-slate-800 border border-slate-700 rounded-xl p-5">
             <p className="text-sm text-slate-400 mb-1">注册用户</p>
@@ -138,7 +140,7 @@ export default function AdminDashboard() {
             </div>
           )}
         </div>
-        <p className="text-xs text-slate-600 mt-4 text-center">数据存储在服务器 data/users.json · 密码明文存储</p>
+        <p className="text-xs text-slate-600 mt-4 text-center">数据存储在 SQL Server 数据库 · 密码明文存储</p>
       </div>
     </div>
   );

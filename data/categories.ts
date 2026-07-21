@@ -1,5 +1,4 @@
 import { Category } from '@/lib/types';
-import { questions } from '@/data/questions';
 
 export interface CategoryInfo {
   id: Category;
@@ -42,10 +41,4 @@ export const categories: CategoryInfo[] = [
 
 export function getCategoryById(id: Category): CategoryInfo | undefined {
   return categories.find((c) => c.id === id);
-}
-
-export function getQuestionsByCategory(categoryId: Category) {
-  return (questions as import('@/lib/types').Question[]).filter(
-    (q) => q.category === categoryId
-  );
 }

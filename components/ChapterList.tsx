@@ -1,14 +1,29 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { chapters } from '@/data/chapters';
-import { questions } from '@/data/questions';
 
 export default function ChapterList() {
-  const questionsData = questions as import('@/lib/types').Question[];
+  const [counts, setCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    fetch('/api/questions')
+      .then((r) => r.json())
+      .then((questions: any[]) => {
+        const c: Record<string, number> = {};
+        questions.forEach((q: any) => {
+          c[q.chapter] = (c[q.chapter] || 0) + 1;
+        });
+        setCounts(c);
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="grid gap-3">
       {chapters.map((ch) => {
-        const count = questionsData.filter((q) => q.chapter === ch.id).length;
+        const count = counts[ch.id] || 0;
         return (
           <Link
             key={ch.id}

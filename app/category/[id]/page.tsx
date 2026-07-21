@@ -4,9 +4,11 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import QuestionCard from '@/components/QuestionCard';
-import { getCategoryById, getQuestionsByCategory } from '@/data/categories';
+import { getCategoryById } from '@/data/categories';
+import { fetchQuestionsByCategory } from '@/data/questions';
 import { UserAnswer, Category } from '@/lib/types';
 import { AuthGuard } from '@/context/AuthContext';
+import type { Question } from '@/lib/types';
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -25,9 +27,14 @@ function CategoryContent() {
   const params = useParams();
   const categoryId = params.id as Category;
   const category = getCategoryById(categoryId);
-  const allQuestions = useMemo(() => getQuestionsByCategory(categoryId), [categoryId]);
+  const [allQuestions, setAllQuestions] = useState<Question[]>([]);
+  const [loading, setLoading] = useState(true);
   const [count, setCount] = useState(0);
   const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    fetchQuestionsByCategory(categoryId).then((q) => { setAllQuestions(q); setLoading(false); }).catch(() => setLoading(false));
+  }, [categoryId]);
 
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
@@ -50,7 +57,7 @@ function CategoryContent() {
     setUserAnswers((prev) => ({ ...prev, [questionId]: { questionId, selected } }));
   }, []);
 
-  if (!ready) {
+  if (!ready || loading) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50"><p className="text-slate-400">加载中...</p></div>;
   }
 
@@ -68,7 +75,6 @@ function CategoryContent() {
   const currentQuestion = questions[currentIndex];
   const answeredCount = Object.values(userAnswers).filter((a) => a.selected.length > 0).length;
 
-  // Calculate correct count
   const correctCount = questions.filter((q) => {
     const ua = userAnswers[q.id];
     if (!ua) return false;

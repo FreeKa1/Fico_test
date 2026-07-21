@@ -3,9 +3,10 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import QuestionCard from '@/components/QuestionCard';
-import { questions } from '@/data/questions';
+import { fetchQuestions } from '@/data/questions';
 import { UserAnswer } from '@/lib/types';
 import { AuthGuard } from '@/context/AuthContext';
+import type { Question } from '@/lib/types';
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -21,8 +22,14 @@ export default function RandomPage() {
 }
 
 function RandomContent() {
+  const [allQuestions, setAllQuestions] = useState<Question[]>([]);
+  const [loading, setLoading] = useState(true);
   const [count, setCount] = useState(0);
   const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    fetchQuestions().then((q) => { setAllQuestions(q); setLoading(false); }).catch(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
@@ -37,13 +44,13 @@ function RandomContent() {
   const [showExplanation, setShowExplanation] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const selected = useMemo(() => shuffle(questions).slice(0, count), [count, reshuffleKey]);
+  const selected = useMemo(() => shuffle(allQuestions).slice(0, count), [allQuestions, count, reshuffleKey]);
 
   const handleAnswerChange = useCallback((questionId: string, sel: string[]) => {
     setUserAnswers((prev) => ({ ...prev, [questionId]: { questionId, selected: sel } }));
   }, []);
 
-  if (!ready) {
+  if (!ready || loading) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50"><p className="text-slate-400">加载中...</p></div>;
   }
 
