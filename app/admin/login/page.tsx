@@ -4,21 +4,40 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Toast from '@/components/Toast';
 
-const ADMIN_ACCOUNT = { username: 'admin', password: 'admin123' };
+// 改为调 /api/users 登录验证，与用户端共用数据库密码
 
 export default function AdminLoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const router = useRouter();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (username.trim() !== ADMIN_ACCOUNT.username || password !== ADMIN_ACCOUNT.password) {
-      setToast({ message: '账号或密码错误', type: 'error' }); return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'login', username: username.trim(), password }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setToast({ message: data.error, type: 'error' });
+        return;
+      }
+      if (username.trim() !== 'admin') {
+        setToast({ message: '非管理员账号', type: 'error' });
+        return;
+      }
+      localStorage.setItem('fico_admin', '1');
+      router.push('/admin');
+    } catch {
+      setToast({ message: '服务器错误', type: 'error' });
+    } finally {
+      setLoading(false);
     }
-    localStorage.setItem('fico_admin', '1');
-    router.push('/admin');
   };
 
   return (
@@ -47,9 +66,9 @@ export default function AdminLoginPage() {
               placeholder="••••••••" autoComplete="off"
               className="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all placeholder-slate-600" />
           </div>
-          <button type="submit"
-            className="w-full py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors">
-            登录管理后台
+          <button type="submit" disabled={loading}
+            className="w-full py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
+            {loading ? '登录中...' : '登录管理后台'}
           </button>
         </form>
       </div>
